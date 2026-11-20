@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CourseXperts | Certificate Verification</title>
+
+    <meta
+        name="description"
+        content="Verify the authenticity and integrity of CourseXperts certificates using blockchain technology."
+    />
+
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Ethers.js for blockchain communication -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+
+    <script src="app.js" defer></script>
+</head>
+<body>
+
+    <header class="header">
+        <div class="container header-content">
+
+            <a href="#" class="logo">
+                <span class="logo-icon">C</span>
+                <span>Course<span class="logo-highlight">Xperts</span></span>
+            </a>
+
+            <div class="header-label">
+                <span class="status-dot"></span>
+                Public Verification Portal
+            </div>
+
+        </div>
+    </header>
+
+    <main>
+
+        <section class="hero">
+            <div class="hero-badge">
+                <span class="status-dot"></span>
+                Blockchain-Powered Verification
+            </div>
+
+            <h1>
+                Verify Your
+                <span>Certificate</span>
+            </h1>
+
+            <p>
+                Confirm the authenticity of a CourseXperts certificate
+                and ensure that its original PDF document has not been altered.
+            </p>
+        </section>
+
+        <section class="verification-section">
+
+            <div class="verification-card">
+
+                <div class="card-heading">
+                    <div>
+                        <h2>Certificate Verification</h2>
+                        <p>Enter your certificate details below.</p>
+                    </div>
+
+                    <div class="security-icon">✓</div>
+                </div>
+
+                <form id="verificationForm">
+
+                    <div class="form-group">
+                        <label for="certificateId">
+                            Certificate ID
+                        </label>
+
+                        <input
+                            type="text"
+                            id="certificateId"
+                            placeholder="Enter your certificate ID"
+                            required
+                        />
+
+                        <small>
+                            Your certificate ID can be found on your
+                            CourseXperts certificate.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="certificateFile">
+                            Certificate PDF
+                        </label>
+
+                        <label for="certificateFile" class="upload-area">
+                            <span class="upload-icon">↑</span>
+
+                            <strong id="fileName">
+                                Upload your certificate PDF
+                            </strong>
+
+                            <span>Click to browse your files</span>
+
+                            <input
+                                type="file"
+                                id="certificateFile"
+                                accept=".pdf,application/pdf"
+                                required
+                            />
+                        </label>
+
+                        <small>
+                            Your PDF will be checked against the
+                            hash registered on the blockchain.
+                        </small>
+                    </div>
+
+                    <button type="submit" id="verifyButton">
+                        Verify Certificate
+                        <span>→</span>
+                    </button>
+
+                </form>
+
+               <div id="result" class="result hidden"></div>
+
+            </div>
+
+            <div class="trust-note">
+                <span>🔒</span>
+                Verification is performed using publicly accessible
+                blockchain records. No account is required.
+            </div>
+
+        </section>
+
+        <section class="information-section">
+
+            <div class="information-card">
+                <div class="information-icon">01</div>
+                <h3>Blockchain Authenticity</h3>
+                <p>
+                    We check whether the certificate has been registered
+                    on the Avalanche blockchain and whether it remains valid.
+                </p>
+            </div>
+
+            <div class="information-card">
+                <div class="information-icon">02</div>
+                <h3>PDF Integrity</h3>
+                <p>
+                    We calculate the SHA-256 hash of your uploaded PDF
+                    and compare it with the original registered hash.
+                </p>
+            </div>
+
+            <div class="information-card">
+                <div class="information-icon">03</div>
+                <h3>Public Verification</h3>
+                <p>
+                    Anyone can verify a CourseXperts certificate
+                    without logging into the learning platform.
+                </p>
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>
+                © <span id="currentYear"></span> CourseXperts.
+                All rights reserved.
+            </p>
+
+            <p>Secured by Avalanche Blockchain Technology</p>
+        </div>
+    </footer>
+
+</body>
+</html>
