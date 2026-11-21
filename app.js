@@ -7,7 +7,7 @@ const CONTRACT_ADDRESS =
     "0xc419bDB0A694c235F9C2a770c7D64E7F2e1cdC58";
 
 const FUJI_RPC_URL =
-    "https://api.avax-test.network/ext/bc/C/rpc";
+ "https://avalanche-fuji-c-chain-rpc.publicnode.com";
 
 const BACKEND_API_URL =
     "http://localhost:5000/api/certificates";
