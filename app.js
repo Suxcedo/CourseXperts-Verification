@@ -12,6 +12,9 @@ const FUJI_RPC_URL =
 const BACKEND_API_URL =
     "http://localhost:5000/api/certificates";
 
+const EXPLORER_URL =
+    "https://testnet.snowtrace.io";
+
 
 // ==========================================
 // BLOCKCHAIN CONNECTION
@@ -19,9 +22,7 @@ const BACKEND_API_URL =
 
 async function getCertificateContract() {
 
-    const provider = new ethers.JsonRpcProvider(
-        FUJI_RPC_URL
-    );
+    const provider = new ethers.JsonRpcProvider(FUJI_RPC_URL);
 
     const abiResponse = await fetch("./contract-abi.json");
 
@@ -67,12 +68,10 @@ async function getPublicCertificate(certificateUUID) {
     const data = await response.json();
 
     if (!response.ok || !data.success) {
-
         throw new Error(
             data.message ||
             "Could not retrieve this certificate."
         );
-
     }
 
     return data.certificate;
@@ -132,28 +131,32 @@ async function getBlockchainCertificate(certificateUUID) {
     const revoked = certificate[3];
     const exists = certificate[4];
 
-    console.log("Blockchain certificate record:", {
+    const blockchainDetails = {
         certificateHash: storedHash,
         issuer,
-        issuedAt: new Date(issuedAt * 1000).toLocaleString(),
+        issuedAt,
+        issuedAtFormatted: issuedAt
+            ? new Date(issuedAt * 1000).toLocaleString()
+            : "Not available",
         revoked,
         exists
-    });
+    };
+
+    console.log(
+        "Blockchain certificate record:",
+        blockchainDetails
+    );
 
     if (!exists) {
-
         throw new Error(
             "This certificate was not found on the blockchain."
         );
-
     }
 
     if (revoked) {
-
         throw new Error(
             "This certificate has been revoked and is no longer valid."
         );
-
     }
 
     return {
@@ -181,11 +184,7 @@ async function verifyPDF(file, storedHash) {
         file.type !== "application/pdf" &&
         !file.name.toLowerCase().endsWith(".pdf")
     ) {
-
-        throw new Error(
-            "The selected file must be a PDF."
-        );
-
+        throw new Error("The selected file must be a PDF.");
     }
 
     console.log("Calculating uploaded PDF hash...");
@@ -252,95 +251,260 @@ function formatIssueDate(dateValue) {
 }
 
 
+function shortenHash(hash) {
+
+    if (!hash || hash.length < 30) {
+        return hash || "Not available";
+    }
+
+    return `${hash.substring(0, 18)}...${hash.substring(hash.length - 12)}`;
+
+}
+
+
 // ==========================================
-// DISPLAY CERTIFICATE DETAILS
+// DISPLAY BLOCKCHAIN EVIDENCE
 // ==========================================
 
-function displayCertificateDetails(certificate) {
+function displayBlockchainDetails(
+    certificateUUID,
+    blockchainCertificate,
+    pdfResult,
+    certificate = null
+) {
 
     const resultArea =
         document.getElementById("result");
 
-    const learnerName =
-        escapeHTML(certificate.learner_name);
+    const learnerName = certificate?.learner_name
+        ? escapeHTML(certificate.learner_name)
+        : null;
 
-    const courseName =
-        escapeHTML(certificate.course_name);
+    const courseName = certificate?.course_name
+        ? escapeHTML(certificate.course_name)
+        : null;
 
-    const certificateId =
-        escapeHTML(certificate.certificate_id);
-
-    const issueDate =
-        escapeHTML(
-            formatIssueDate(certificate.issued_at)
-        );
+    const certificateDate = certificate?.issued_at
+        ? formatIssueDate(certificate.issued_at)
+        : blockchainCertificate.issuedAt
+            ? new Date(
+                blockchainCertificate.issuedAt * 1000
+            ).toLocaleDateString(undefined, {
+                day: "numeric",
+                month: "long",
+                year: "numeric"
+            })
+            : "Not available";
 
     const transactionHash =
-        escapeHTML(
-            certificate.blockchain_transaction_hash ||
-            "Not available"
-        );
+        certificate?.blockchain_transaction_hash || null;
 
     const network =
-        escapeHTML(
-            certificate.blockchain_network ||
-            "Not available"
-        );
+        certificate?.blockchain_network || "Avalanche Fuji Testnet";
 
-    const pdfURL =
-        escapeHTML(certificate.certificate_pdf_url);
+    const uploadedHash = pdfResult?.uploadedHash || null;
 
-    resultArea.innerHTML = `
-        <div class="certificate-details">
+    const storedHash =
+        blockchainCertificate.storedHash;
 
-            <h3>Certificate Details</h3>
+    const issuer =
+        blockchainCertificate.issuer;
 
-            <p>
-                <strong>Learner:</strong>
-                ${learnerName}
-            </p>
+    const certificateId =
+        certificate?.certificate_id || certificateUUID;
 
-            <p>
-                <strong>Course:</strong>
-                ${courseName}
-            </p>
-
-            <p>
-                <strong>Certificate ID:</strong>
-                ${certificateId}
-            </p>
-
-            <p>
-                <strong>Issue Date:</strong>
-                ${issueDate}
-            </p>
-
-            <p>
-                <strong>Blockchain Status:</strong>
-                Registered
-            </p>
-
-            <p>
-                <strong>Blockchain Network:</strong>
-                ${network}
-            </p>
-
-            <p>
-                <strong>Transaction Hash:</strong>
-                <span class="transaction-hash">
-                    ${transactionHash}
+    const transactionSection = transactionHash
+        ? `
+            <div class="evidence-item full-width">
+                <span class="evidence-label">
+                    Blockchain Transaction Hash
                 </span>
-            </p>
 
-            <p>
+                <div class="hash-value">
+                    ${escapeHTML(transactionHash)}
+                </div>
+
                 <a
-                    href="${pdfURL}"
+                    class="explorer-link"
+                    href="${EXPLORER_URL}/tx/${encodeURIComponent(transactionHash)}"
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    View Original Certificate PDF
+                    View transaction on Avalanche Explorer ↗
                 </a>
-            </p>
+            </div>
+        `
+        : "";
+
+    resultArea.innerHTML = `
+        <div class="blockchain-evidence">
+
+            <div class="evidence-header">
+                <div>
+                    <span class="section-eyebrow">
+                        ON-CHAIN VERIFICATION
+                    </span>
+
+                    <h3>Blockchain Evidence</h3>
+
+                    <p>
+                        The following information was retrieved
+                        directly from the Avalanche smart contract.
+                    </p>
+                </div>
+
+                <span class="network-badge">
+                    Avalanche Fuji
+                </span>
+            </div>
+
+
+            <div class="evidence-grid">
+
+                ${learnerName ? `
+                    <div class="evidence-item">
+                        <span class="evidence-label">Learner</span>
+                        <strong>${learnerName}</strong>
+                    </div>
+                ` : ""}
+
+                ${courseName ? `
+                    <div class="evidence-item">
+                        <span class="evidence-label">Course</span>
+                        <strong>${courseName}</strong>
+                    </div>
+                ` : ""}
+
+                <div class="evidence-item full-width">
+                    <span class="evidence-label">
+                        Certificate ID
+                    </span>
+
+                    <strong class="break-value">
+                        ${escapeHTML(certificateId)}
+                    </strong>
+                </div>
+
+                <div class="evidence-item">
+                    <span class="evidence-label">
+                        Blockchain Status
+                    </span>
+
+                    <strong class="verified-text">
+                        Registered and Not Revoked
+                    </strong>
+                </div>
+
+                <div class="evidence-item">
+                    <span class="evidence-label">
+                        Blockchain Network
+                    </span>
+
+                    <strong>${escapeHTML(network)}</strong>
+                </div>
+
+                <div class="evidence-item">
+                    <span class="evidence-label">
+                        Registration Timestamp
+                    </span>
+
+                    <strong>
+                        ${blockchainCertificate.issuedAt
+                            ? escapeHTML(
+                                new Date(
+                                    blockchainCertificate.issuedAt * 1000
+                                ).toLocaleString()
+                            )
+                            : "Not available"}
+                    </strong>
+                </div>
+
+                <div class="evidence-item">
+                    <span class="evidence-label">
+                        Certificate Issue Date
+                    </span>
+
+                    <strong>${escapeHTML(certificateDate)}</strong>
+                </div>
+
+                <div class="evidence-item full-width">
+                    <span class="evidence-label">
+                        Smart Contract Address
+                    </span>
+
+                    <div class="hash-value">
+                        ${CONTRACT_ADDRESS}
+                    </div>
+
+                    <a
+                        class="explorer-link"
+                        href="${EXPLORER_URL}/address/${CONTRACT_ADDRESS}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        View smart contract on Avalanche Explorer ↗
+                    </a>
+                </div>
+
+                <div class="evidence-item full-width">
+                    <span class="evidence-label">
+                        Issuer Wallet Address
+                    </span>
+
+                    <div class="hash-value">
+                        ${escapeHTML(issuer)}
+                    </div>
+
+                    <a
+                        class="explorer-link"
+                        href="${EXPLORER_URL}/address/${encodeURIComponent(issuer)}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        View issuer wallet on Avalanche Explorer ↗
+                    </a>
+                </div>
+
+                <div class="evidence-item full-width">
+                    <span class="evidence-label">
+                        Original SHA-256 Hash Stored on Blockchain
+                    </span>
+
+                    <div class="hash-value">
+                        ${escapeHTML(storedHash)}
+                    </div>
+                </div>
+
+                ${uploadedHash ? `
+                    <div class="evidence-item full-width">
+                        <span class="evidence-label">
+                            Uploaded PDF SHA-256 Hash
+                        </span>
+
+                        <div class="hash-value">
+                            ${escapeHTML(uploadedHash)}
+                        </div>
+
+                        <span class="${pdfResult.valid ? "verified-text" : "failed-text"}">
+                            ${pdfResult.valid
+                                ? "✓ Hash matches the blockchain record"
+                                : "✕ Hash does not match the blockchain record"}
+                        </span>
+                    </div>
+                ` : ""}
+
+                ${transactionSection}
+
+            </div>
+
+            <div class="evidence-footer">
+                <span class="evidence-check">✓</span>
+
+                <p>
+                    Blockchain information retrieved successfully
+                    from the deployed smart contract.
+                </p>
+            </div>
 
         </div>
     `;
@@ -361,10 +525,29 @@ function displayVerificationResult(
     const resultArea =
         document.getElementById("result");
 
+    const icon = status === "success" ? "✓" : "✕";
+
     resultArea.innerHTML += `
         <div class="verification-result ${status}">
-            <h3>${escapeHTML(title)}</h3>
-            <p>${escapeHTML(message)}</p>
+
+            <div class="result-status-icon">
+                ${icon}
+            </div>
+
+            <div class="result-status-content">
+
+                <span class="section-eyebrow">
+                    ${status === "success"
+                        ? "VERIFICATION SUCCESSFUL"
+                        : "VERIFICATION FAILED"}
+                </span>
+
+                <h3>${escapeHTML(title)}</h3>
+
+                <p>${escapeHTML(message)}</p>
+
+            </div>
+
         </div>
     `;
 
@@ -384,21 +567,31 @@ async function verifyCertificateWithPDF(
         "Using direct blockchain PDF verification..."
     );
 
-    // No backend API request is made here.
+    // Retrieve the certificate directly from Avalanche.
 
     const blockchainCertificate =
         await getBlockchainCertificate(certificateUUID);
+
+    // Calculate and compare the uploaded PDF hash.
 
     const pdfResult = await verifyPDF(
         file,
         blockchainCertificate.storedHash
     );
 
+    // Display the real blockchain evidence.
+
+    displayBlockchainDetails(
+        certificateUUID,
+        blockchainCertificate,
+        pdfResult
+    );
+
     if (pdfResult.valid) {
 
         displayVerificationResult(
             "Certificate Authentic",
-            "The uploaded PDF matches the hash stored on Avalanche. The certificate exists and has not been revoked.",
+            "The uploaded PDF matches the original SHA-256 hash stored on Avalanche. The certificate exists on the blockchain and has not been revoked.",
             "success"
         );
 
@@ -410,7 +603,7 @@ async function verifyCertificateWithPDF(
 
         displayVerificationResult(
             "Document Verification Failed",
-            "The uploaded PDF does not match the original certificate hash stored on the blockchain.",
+            "The uploaded PDF does not match the original SHA-256 hash stored on the blockchain. The document may have been modified or may not be the original certificate.",
             "error"
         );
 
@@ -422,7 +615,7 @@ async function verifyCertificateWithPDF(
 
     return {
         valid: pdfResult.valid,
-        documentVerified: true,
+        documentVerified: pdfResult.valid,
         blockchainCertificate,
         pdfResult
     };
@@ -440,8 +633,6 @@ async function verifyCertificateWithID(certificateUUID) {
         "Retrieving certificate details from CourseXperts..."
     );
 
-    // This method requires the backend.
-
     const certificate =
         await getPublicCertificate(certificateUUID);
 
@@ -450,18 +641,19 @@ async function verifyCertificateWithID(certificateUUID) {
         certificate
     );
 
-    displayCertificateDetails(certificate);
-
-    console.log(
-        "Checking certificate on Avalanche..."
-    );
-
     const blockchainCertificate =
         await getBlockchainCertificate(certificateUUID);
 
+    displayBlockchainDetails(
+        certificateUUID,
+        blockchainCertificate,
+        null,
+        certificate
+    );
+
     displayVerificationResult(
         "Certificate Authentic",
-        "The certificate was found in CourseXperts and its blockchain record is valid and has not been revoked. Upload the PDF separately if you also want to verify the document's integrity.",
+        "The certificate was found in CourseXperts and its blockchain record is valid and has not been revoked. Upload the original PDF to verify document integrity.",
         "success"
     );
 
@@ -479,7 +671,10 @@ async function verifyCertificateWithID(certificateUUID) {
 // MAIN VERIFICATION PROCESS
 // ==========================================
 
-async function verifyCertificate(certificateUUID, file) {
+async function verifyCertificate(
+    certificateUUID,
+    file
+) {
 
     console.log("Starting certificate verification...");
 
@@ -487,15 +682,10 @@ async function verifyCertificate(certificateUUID, file) {
         !certificateUUID ||
         !certificateUUID.trim()
     ) {
-
         throw new Error(
             "Please enter your certificate ID."
         );
-
     }
-
-    // If a PDF is selected, use direct blockchain
-    // verification without contacting the backend.
 
     if (file) {
 
@@ -505,9 +695,6 @@ async function verifyCertificate(certificateUUID, file) {
         );
 
     }
-
-    // If no PDF is selected, retrieve certificate
-    // details using the public backend API.
 
     return await verifyCertificateWithID(
         certificateUUID
@@ -544,22 +731,44 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("currentYear");
 
 
-    // PDF upload is optional.
+    // ======================================
+    // QR CODE CERTIFICATE ID AUTOFILL
+    // ======================================
 
-    pdfInput.required = false;
+    const urlParams =
+        new URLSearchParams(window.location.search);
 
+    const certificateIdFromURL =
+        urlParams.get("id");
 
-    // Display current year.
+    if (certificateIdFromURL && certificateIdInput) {
 
-    if (currentYear) {
+        certificateIdInput.value =
+            certificateIdFromURL.trim();
 
-        currentYear.textContent =
-            new Date().getFullYear();
+        console.log(
+            "Certificate ID automatically loaded from QR code:",
+            certificateIdFromURL
+        );
 
     }
 
 
-    // Display selected PDF filename.
+    // ======================================
+    // INITIAL PAGE SETTINGS
+    // ======================================
+
+    pdfInput.required = false;
+
+    if (currentYear) {
+        currentYear.textContent =
+            new Date().getFullYear();
+    }
+
+
+    // ======================================
+    // PDF FILE SELECTION
+    // ======================================
 
     pdfInput.addEventListener("change", () => {
 
@@ -569,11 +778,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             fileNameDisplay.textContent =
                 file.name;
-
-            console.log(
-                "Selected certificate:",
-                file.name
-            );
 
         } else {
 
@@ -585,7 +789,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
 
-    // Handle verification form submission.
+    // ======================================
+    // FORM SUBMISSION
+    // ======================================
 
     certificateForm.addEventListener(
         "submit",
@@ -599,10 +805,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const file =
                 pdfInput.files[0];
 
-            resultArea.className = "hidden";
+            resultArea.className = "result";
             resultArea.innerHTML = "";
 
             resultArea.classList.remove("hidden");
+
+            // Keep the original simple loading message.
 
             resultArea.textContent =
                 "Verifying certificate...";
